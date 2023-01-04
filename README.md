@@ -1,2 +1,2 @@
-# PP_N_Body - Parallel Computing Solution to Barnes Hut N Body Problem
+# PP_N_Body - Parallel Barnes Hut Solution to N Body Problem
 ## Cost Zone
