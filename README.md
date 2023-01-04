@@ -1,2 +1,3 @@
 # PP_N_Body
-## Parallel Computing for N Body problem
+# Parallel Computing Solution to N Body Problem
+## Cost Zone
