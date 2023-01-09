@@ -10,6 +10,7 @@
 #include <sys/time.h>
 #include <string.h>
 #include <errno.h>
+#include <mpi.h>
 
 
 #define GRAVITY     1.1
@@ -381,6 +382,15 @@ main(int argc, char **argv)
     struct timeval end;
     struct filemap image_map;
 
+    // MPI Initlization 
+    MPI_Init(NULL, NULL);
+    int MPI_rank;
+    int MPI_world;
+    MPI_Comm_rank(MPI_COMM_WORLD, &MPI_rank);   // GET current node rank
+    MPI_Comm_size(MPI_COMM_WORLD, &MPI_world);  // GET total node size
+
+    printf("MPI Rank :%d\n",MPI_rank);
+
     struct world *world = calloc(1, sizeof *world);
     if (world == NULL) {
         fprintf(stderr, "Cannot calloc(world)\n");
@@ -461,6 +471,8 @@ main(int argc, char **argv)
     filemap_close(&image_map);
 
     free(world);
+
+    MPI_Finalize();
 
     return 0;
 }
