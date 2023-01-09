@@ -56,18 +56,17 @@ struct world {
 #define M(w, B)        (w)->bodies[B].mass
 
 
+/* Clear accumlated forces on each astro body*/
 static void
 clear_forces(struct world *world)
 {
     int b;
-
-    /* Clear force accumulation variables */
     for (b = 0; b < world->bodyCt; ++b) {
         YF(world, b) = XF(world, b) = 0;
     }
 }
 
-static void
+static void 
 compute_forces(struct world *world)
 {
     int b, c;
@@ -83,6 +82,7 @@ compute_forces(struct world *world)
             double dsqr = dx*dx + dy*dy;
             double mindist = R(world, b) + R(world, c);
             double mindsqr = mindist*mindist;
+            // If distance between x and y is bigger than their radius
             double forced = ((dsqr < mindsqr) ? mindsqr : dsqr);
             double force = M(world, b) * M(world, c) * GRAVITY / forced;
             double xf = force * cos(angle);
@@ -99,6 +99,7 @@ compute_forces(struct world *world)
     }
 }
 
+/* Compute velocity from accumlated foreces */
 static void
 compute_velocities(struct world *world)
 {
@@ -117,6 +118,7 @@ compute_velocities(struct world *world)
     }
 }
 
+/* Compute astro body position from velocity and time interval */
 static void
 compute_positions(struct world *world)
 {
