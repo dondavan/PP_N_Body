@@ -43,9 +43,6 @@ struct world {
     int                 ydim;
 };
 
-struct treeNode{
-    struct bodyType body;
-};
 
 /* Quad Tree, 1 node has 4 child*/
 struct quadTree {
@@ -60,17 +57,21 @@ struct quadTree {
     struct quadTree * child_BL;
     struct quadTree * child_BR;
 
-    struct treeNode * node;
+    /* Tree node content */
+    struct bodyType * body;
 
-    /* Tree size */
-    int size;
+    /* Related Space Dimensions*/
+    double xdim;
+    double ydim;
+    double xCenter;
+    double yCenter;
 
-    /* If node has child */
-    int IF_child;
+    /* If node already has body, need to be sub divided */
+    int has_body;
     
 };
 
-/* Linked List to link all tree node */
+/* Linked List to link all leave node */
 struct linkedList
 {
   struct quadTree * node;
@@ -91,13 +92,36 @@ struct linkedList
 #define R(w, B)        (w)->bodies[B].radius
 #define M(w, B)        (w)->bodies[B].mass
 
+/* Insert new quad tree node */
+static void
+insert_tree(struct quadTree * root, struct bodyType * body)
+{
+    if(root->has_body){
+        struct quadTree * treeNode = malloc(sizeof(struct quadTree));
+        printf("leave");
+    }else{
+        root->body = body;
+        root->has_body = 1;
+        printf("root");
+    }
+    
+}
 
 /* Build Quadtree*/
 static void
-build_tree(struct world *world)
+build_tree(struct world *world,struct quadTree * root)
 {
+    root->xdim = world->xdim;
+    root->ydim = world->ydim;
+    root->xCenter = root->xdim / 2;
+    root->yCenter = root->ydim / 2;
+    root->has_body = 0;
 
+    for(int b = 0; b < world->bodyCt; ++b){
+        insert_tree(root,&(world->bodies[b]));
+    }
 }
+
 
 /* Clear accumlated forces on each astro body*/
 static void
@@ -482,7 +506,7 @@ main(int argc, char **argv)
     if(MPI_rank == 0){
         struct quadTree * treeRoot = malloc(sizeof(struct quadTree));
         memset(treeRoot, 0, sizeof(struct quadTree)); 
-        printf("%d\n",treeRoot->IF_child);
+        build_tree(world,treeRoot);
     }
 
     /* Main Loop */
