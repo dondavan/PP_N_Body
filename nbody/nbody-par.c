@@ -70,6 +70,14 @@ struct quadTree {
     
 };
 
+/* Linked List to link all tree node */
+struct linkedList
+{
+  struct quadTree * node;
+  struct linkedList* next;
+
+};
+
 /*  Macros to hide memory layout
 */
 #define X(w, B)        (w)->bodies[B].x[(w)->old]
@@ -83,6 +91,13 @@ struct quadTree {
 #define R(w, B)        (w)->bodies[B].radius
 #define M(w, B)        (w)->bodies[B].mass
 
+
+/* Build Quadtree*/
+static void
+build_tree(struct world *world)
+{
+
+}
 
 /* Clear accumlated forces on each astro body*/
 static void
@@ -178,6 +193,7 @@ compute_positions(struct world *world)
     }
 }
 
+/*  */
 
 /*  Graphic output stuff...
  */
