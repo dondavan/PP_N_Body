@@ -43,6 +43,33 @@ struct world {
     int                 ydim;
 };
 
+struct treeNode{
+    struct bodyType body;
+};
+
+/* Quad Tree, 1 node has 4 child*/
+struct quadTree {
+
+    /* Child node, represent space partition*/
+    /*
+        [ TL ][ TR ]
+        [ BL ][ BR ]
+    */
+    struct quadTree * child_TL;
+    struct quadTree * child_TR;
+    struct quadTree * child_BL;
+    struct quadTree * child_BR;
+
+    struct treeNode * node;
+
+    /* Tree size */
+    int size;
+
+    /* If node has child */
+    int IF_child;
+    
+};
+
 /*  Macros to hide memory layout
 */
 #define X(w, B)        (w)->bodies[B].x[(w)->old]
@@ -389,7 +416,6 @@ main(int argc, char **argv)
     MPI_Comm_rank(MPI_COMM_WORLD, &MPI_rank);   // GET current node rank
     MPI_Comm_size(MPI_COMM_WORLD, &MPI_world);  // GET total node size
 
-    printf("MPI Rank :%d\n",MPI_rank);
 
     struct world *world = calloc(1, sizeof *world);
     if (world == NULL) {
@@ -434,6 +460,13 @@ main(int argc, char **argv)
     if (gettimeofday(&start, 0) != 0) {
         fprintf(stderr, "could not do timing\n");
         exit(1);
+    }
+
+    /* Build Tree */
+    if(MPI_rank == 0){
+        struct quadTree * treeRoot = malloc(sizeof(struct quadTree));
+        memset(treeRoot, 0, sizeof(struct quadTree)); 
+        printf("%d\n",treeRoot->IF_child);
     }
 
     /* Main Loop */

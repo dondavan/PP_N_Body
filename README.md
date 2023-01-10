@@ -16,4 +16,25 @@ Content:
 DAS-5 MPI Run:
 prun -v -1 -np 4 -script ${PRUN_ETC}/prun-openmpi ./nbody-par
 
-## Cost Zone
+## Work Flow
+
+No Cost zone
+
+1. Build Tree
+
+2.Dispacth work to worker
+work = 	compute_forces(world);
+    	compute_velocities(world);
+        compute_positions(world);
+3.Worker compute
+4.Collect work
+
+1. Worker compute local force. Local astro bodies accumlates one force
+
+
+
+## Communicate overhead
+
+## Load Imbalance
+Root worker takes extra work to distribute work
+
