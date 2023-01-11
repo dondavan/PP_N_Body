@@ -118,6 +118,8 @@ insert_tree(struct quadTree * root, struct bodyType * body,int old)
 {
     if(root->has_body){
         if(!root->divided){
+
+        printf("coming,x:%f, y: %f\n",root->body->x[old],root->body->y[old]);
             /* 
                 New coming body and old body stored in node,
                 will be assign to correspond space partitioned 
@@ -200,6 +202,8 @@ insert_tree(struct quadTree * root, struct bodyType * body,int old)
             root->divided = 1;
             root->parent = 1;
         }else{
+
+        printf("divided,x:%f, y: %f\n",root->body->x[old],root->body->y[old]);
             /*  
                 If the tree node is already divied,
                 insert new coming node into child node,
@@ -264,6 +268,7 @@ insert_tree(struct quadTree * root, struct bodyType * body,int old)
     }else{
         root->body = body;
         root->has_body = 1;
+        printf("body,x:%f, y: %f\n",root->body->x[old],root->body->y[old]);
     }
     
 }
@@ -275,6 +280,7 @@ build_tree(struct world *world,struct quadTree * root)
     init_node(root,0,world->xdim,0,world->ydim);
 
     for(int b = 0; b < world->bodyCt; ++b){
+        printf("%d  x: %f, y: %f\n",b,world->xdim,world->ydim);
         insert_tree(root,&(world->bodies[b]),world->old);
     }
 }
