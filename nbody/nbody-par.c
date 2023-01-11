@@ -68,7 +68,12 @@ struct quadTree {
 
     /* If node already has body, need to be sub divided */
     int has_body;
+
+    /* If current tree is sub divied*/
+    int divided;
     
+    /* If node is parent node*/
+    int parent;
 };
 
 /* Linked List to link all leave node */
@@ -92,17 +97,173 @@ struct linkedList
 #define R(w, B)        (w)->bodies[B].radius
 #define M(w, B)        (w)->bodies[B].mass
 
+static void
+init_node(struct quadTree * node,double xl,double xu,double yl,double yu){
+    node->xdim = xu-xl;
+    node->ydim = yu-yl;
+    node->xCenter = (xl+xu) / 2;
+    node->yCenter = (yl+yu) / 2;
+    node->has_body = 0;
+    node->divided = 0;
+    node->parent = 0;
+    node->child_BL = NULL;
+    node->child_BR = NULL;
+    node->child_TL = NULL;
+    node->child_TR = NULL;
+}
+
 /* Insert new quad tree node */
 static void
-insert_tree(struct quadTree * root, struct bodyType * body)
+insert_tree(struct quadTree * root, struct bodyType * body,int old)
 {
     if(root->has_body){
-        struct quadTree * treeNode = malloc(sizeof(struct quadTree));
-        printf("leave");
+        if(!root->divided){
+            /* 
+                New coming body and old body stored in node,
+                will be assign to correspond space partitioned 
+                child node.
+            */
+
+            /* For new coming body */
+            struct quadTree * newNode = malloc(sizeof(struct quadTree));
+            /* For old root node body */
+            struct quadTree * oldNode = malloc(sizeof(struct quadTree));
+        
+            /* Space partition, insert new coming body */
+            if( body->x[old] < root ->xCenter && body->y[old] > root ->yCenter){
+                root->child_TL = newNode;
+                init_node(root->child_TL,   root ->xCenter - (root -> xdim)/2,
+                                            root ->xCenter,
+                                            root ->yCenter,
+                                            root ->yCenter + (root -> ydim)/2);
+                insert_tree(root->child_TL,body,old);
+            }
+            else if(body->x[old] > root ->xCenter && body->y[old] > root ->yCenter){
+                root->child_TR = newNode;
+                init_node(root->child_TR,   root ->xCenter,
+                                            root ->xCenter + (root -> xdim)/2,
+                                            root ->yCenter,
+                                            root ->yCenter + (root -> ydim)/2);
+                insert_tree(root->child_TR,body,old);
+            }
+            else if(body->x[old] < root ->xCenter && body->y[old] < root ->yCenter){
+                root->child_BL = newNode;
+                init_node(root->child_BL,   root ->xCenter - (root -> xdim)/2,
+                                            root ->xCenter,
+                                            root ->yCenter - (root -> ydim)/2,
+                                            root ->yCenter);
+                insert_tree(root->child_BL,body,old);
+            }
+            else if(body->x[old] > root ->xCenter && body->y[old] < root ->yCenter){
+                root->child_BR = newNode;
+                init_node(root->child_BR,   root ->xCenter,
+                                            root ->xCenter + (root -> xdim)/2,
+                                            root ->yCenter - (root -> ydim)/2,
+                                            root ->yCenter);
+                insert_tree(root->child_BR,body,old);
+            }
+
+            /* Space partition, insert stored old body to child leave */
+            if( (root->body)->x[old] < root ->xCenter && (root->body)->y[old] > root ->yCenter){
+                root->child_TL = oldNode;
+                init_node(root->child_TL,   root ->xCenter - (root -> xdim)/2,
+                                            root ->xCenter,
+                                            root ->yCenter,
+                                            root ->yCenter + (root -> ydim)/2);
+                insert_tree(root->child_TL,root->body,old);
+            }
+            else if((root->body)->x[old] > root ->xCenter && (root->body)->y[old] > root ->yCenter){
+                root->child_TR = oldNode;
+                init_node(root->child_TR,   root ->xCenter,
+                                            root ->xCenter + (root -> xdim)/2,
+                                            root ->yCenter,
+                                            root ->yCenter + (root -> ydim)/2);
+                insert_tree(root->child_TR,root->body,old);
+            }
+            else if((root->body)->x[old] < root ->xCenter && (root->body)->y[old] < root ->yCenter){
+                root->child_BL = oldNode;
+                init_node(root->child_BL,   root ->xCenter - (root -> xdim)/2,
+                                            root ->xCenter,
+                                            root ->yCenter - (root -> ydim)/2,
+                                            root ->yCenter);
+                insert_tree(root->child_BL,root->body,old);
+            }
+            else if((root->body)->x[old] > root ->xCenter && (root->body)->y[old] < root ->yCenter){
+                root->child_BR = oldNode;
+                init_node(root->child_BR,   root ->xCenter,
+                                            root ->xCenter + (root -> xdim)/2,
+                                            root ->yCenter - (root -> ydim)/2,
+                                            root ->yCenter);
+                insert_tree(root->child_BR,root->body,old);
+            }
+
+            root->divided = 1;
+            root->parent = 1;
+        }else{
+            /*  
+                If the tree node is already divied,
+                insert new coming node into child node,
+                check if child node is empty before insertion
+            */
+            if( body->x[old] < root ->xCenter && body->y[old] > root ->yCenter){
+                if(root->child_TL != NULL){
+                    insert_tree(root->child_TL,body,old);
+                }else{
+                    struct quadTree * newNode = malloc(sizeof(struct quadTree));
+                    root->child_TL = newNode;
+                    init_node(root->child_TL,   root ->xCenter - (root -> xdim)/2,
+                                                root ->xCenter,
+                                                root ->yCenter,
+                                                root ->yCenter + (root -> ydim)/2);
+                    insert_tree(root->child_TL,body,old);
+                }
+            }
+            else if(body->x[old] > root ->xCenter && body->y[old] > root ->yCenter){
+                if(root->child_TR != NULL){
+                    insert_tree(root->child_TR,body,old);
+                }else{
+                    struct quadTree * newNode = malloc(sizeof(struct quadTree));
+                    root->child_TR = newNode;
+                    init_node(root->child_TR,   root ->xCenter,
+                                                root ->xCenter + (root -> xdim)/2,
+                                                root ->yCenter,
+                                                root ->yCenter + (root -> ydim)/2);
+                    insert_tree(root->child_TR,body,old);
+                }
+
+            }
+            else if(body->x[old] < root ->xCenter && body->y[old] < root ->yCenter){
+                if(root->child_BL != NULL){
+                    insert_tree(root->child_BL,body,old);
+                }else{
+                    struct quadTree * newNode = malloc(sizeof(struct quadTree));
+                    root->child_BL = newNode;
+                    init_node(root->child_BL,   root ->xCenter - (root -> xdim)/2,
+                                                root ->xCenter,
+                                                root ->yCenter - (root -> ydim)/2,
+                                                root ->yCenter);
+                    insert_tree(root->child_BL,body,old);
+                }
+                
+            }
+            else if(body->x[old] > root ->xCenter && body->y[old] < root ->yCenter){
+                if(root->child_BR != NULL){
+                    insert_tree(root->child_BR,body,old);
+                }else{
+                    struct quadTree * newNode = malloc(sizeof(struct quadTree));
+                    root->child_BR = newNode;
+                    init_node(root->child_BR,   root ->xCenter,
+                                                root ->xCenter + (root -> xdim)/2,
+                                                root ->yCenter - (root -> ydim)/2,
+                                                root ->yCenter);
+                    insert_tree(root->child_BR,body,old);
+                }
+            }
+
+        }
     }else{
         root->body = body;
         root->has_body = 1;
-        printf("root");
     }
     
 }
@@ -111,14 +272,10 @@ insert_tree(struct quadTree * root, struct bodyType * body)
 static void
 build_tree(struct world *world,struct quadTree * root)
 {
-    root->xdim = world->xdim;
-    root->ydim = world->ydim;
-    root->xCenter = root->xdim / 2;
-    root->yCenter = root->ydim / 2;
-    root->has_body = 0;
+    init_node(root,0,world->xdim,0,world->ydim);
 
     for(int b = 0; b < world->bodyCt; ++b){
-        insert_tree(root,&(world->bodies[b]));
+        insert_tree(root,&(world->bodies[b]),world->old);
     }
 }
 
