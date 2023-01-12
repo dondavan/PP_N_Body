@@ -116,6 +116,7 @@ init_node(struct quadTree * node,double xl,double xu,double yl,double yu){
 static void
 insert_tree(struct quadTree * root, struct bodyType * body,int old)
 {
+
     if(root->has_body){
         if(!root->divided){
 
@@ -127,10 +128,7 @@ insert_tree(struct quadTree * root, struct bodyType * body,int old)
 
             /* For new coming body */
             struct quadTree * newNode = malloc(sizeof(struct quadTree));
-            /* For old root node body */
-            struct quadTree * oldNode = malloc(sizeof(struct quadTree));
         
-            printf("X : %f \n",(root->body)->x[old]);
             /* Space partition, insert new coming body */
             /* Body on boundry will be allocate to clock wise partition */
             /* Body on center will be allocate to TOP LEFT partition*/
@@ -175,46 +173,72 @@ insert_tree(struct quadTree * root, struct bodyType * body,int old)
                 insert_tree(root->child_TL,body,old);
             }
             
+            
             /* Space partition, insert stored old body to child leave */
             if( (root->body)->x[old] < root ->xCenter && ( ((root->body)->y[old] > root ->yCenter) || ((root->body)->y[old] == root ->yCenter))){
-                root->child_TL = oldNode;
-                init_node(root->child_TL,   root ->xCenter - (root -> xdim)/2,
-                                            root ->xCenter,
-                                            root ->yCenter,
-                                            root ->yCenter + (root -> ydim)/2);
-                insert_tree(root->child_TL,root->body,old);
+                if(root->child_TL != NULL){
+                    insert_tree(root->child_TL,root->body,old);
+                }else{
+                    struct quadTree * oldNode = malloc(sizeof(struct quadTree));
+                    root->child_TL = oldNode;
+                    init_node(root->child_TL,   root ->xCenter - (root -> xdim)/2,
+                                                root ->xCenter,
+                                                root ->yCenter,
+                                                root ->yCenter + (root -> ydim)/2);
+                    insert_tree(root->child_TL,root->body,old);
+                }
             }
             else if( ( (root->body)->x[old] > root ->xCenter || (root->body)->x[old] == root ->xCenter)&& (root->body)->y[old] > root ->yCenter){
-                root->child_TR = oldNode;
-                init_node(root->child_TR,   root ->xCenter,
-                                            root ->xCenter + (root -> xdim)/2,
-                                            root ->yCenter,
-                                            root ->yCenter + (root -> ydim)/2);
-                insert_tree(root->child_TR,root->body,old);
+                if(root->child_TR != NULL){
+                    insert_tree(root->child_TR,root->body,old);
+                }else{
+                    struct quadTree * oldNode = malloc(sizeof(struct quadTree));
+                    root->child_TR = oldNode;
+                    init_node(root->child_TR,   root ->xCenter,
+                                                root ->xCenter + (root -> xdim)/2,
+                                                root ->yCenter,
+                                                root ->yCenter + (root -> ydim)/2);
+                    insert_tree(root->child_TR,root->body,old);
+                }
             }
             else if( ( (root->body)->x[old] < root ->xCenter || (root->body)->x[old] == root ->xCenter)&& (root->body)->y[old] < root ->yCenter){
-                root->child_BL = oldNode;
-                init_node(root->child_BL,   root ->xCenter - (root -> xdim)/2,
-                                            root ->xCenter,
-                                            root ->yCenter - (root -> ydim)/2,
-                                            root ->yCenter);
-                insert_tree(root->child_BL,root->body,old);
+                if(root->child_BL != NULL){
+                    insert_tree(root->child_BL,root->body,old);
+                }else{
+                    struct quadTree * oldNode = malloc(sizeof(struct quadTree));
+                    root->child_BL = oldNode;
+                    init_node(root->child_BL,   root ->xCenter - (root -> xdim)/2,
+                                                root ->xCenter,
+                                                 root ->yCenter - (root -> ydim)/2,
+                                                root ->yCenter);
+                    insert_tree(root->child_BL,root->body,old);
+                }    
             }
             else if((root->body)->x[old] > root ->xCenter && ( (root->body)->y[old] < root ->yCenter || (root->body)->y[old] == root ->yCenter ) ){
-                root->child_BR = oldNode;
-                init_node(root->child_BR,   root ->xCenter,
-                                            root ->xCenter + (root -> xdim)/2,
-                                            root ->yCenter - (root -> ydim)/2,
-                                            root ->yCenter);
-                insert_tree(root->child_BR,root->body,old);
+                if(root->child_BR != NULL){
+                    insert_tree(root->child_BR,root->body,old);
+                }else{
+                    struct quadTree * oldNode = malloc(sizeof(struct quadTree));
+                    root->child_BR = oldNode;
+                    init_node(root->child_BR,   root ->xCenter,
+                                                root ->xCenter + (root -> xdim)/2,
+                                                root ->yCenter - (root -> ydim)/2,
+                                                root ->yCenter);
+                    insert_tree(root->child_BR,root->body,old);
+                }
             }
             else if((root->body)->x[old] == root ->xCenter && (root->body)->y[old] == root ->yCenter ){
-                root->child_TL = oldNode;
-                init_node(root->child_TL,   root ->xCenter - (root -> xdim)/2,
-                                            root ->xCenter,
-                                            root ->yCenter,
-                                            root ->yCenter + (root -> ydim)/2);
-                insert_tree(root->child_TL,root->body,old);
+                if(root->child_TL != NULL){
+                    insert_tree(root->child_TL,root->body,old);
+                }else{
+                    struct quadTree * oldNode = malloc(sizeof(struct quadTree));
+                    root->child_TL = oldNode;
+                    init_node(root->child_TL,   root ->xCenter - (root -> xdim)/2,
+                                                root ->xCenter,
+                                                root ->yCenter,
+                                                root ->yCenter + (root -> ydim)/2);
+                    insert_tree(root->child_TL,root->body,old);
+                }
             }
 
             root->divided = 1;
@@ -227,6 +251,7 @@ insert_tree(struct quadTree * root, struct bodyType * body,int old)
                 insert new coming node into child node,
                 check if child node is empty before insertion
             */
+
             if( body->x[old] < root ->xCenter && ( body->y[old] > root ->yCenter || body->y[old] == root ->yCenter) ){
                 if(root->child_TL != NULL){
                     insert_tree(root->child_TL,body,old);
@@ -318,6 +343,7 @@ build_tree(struct world *world,struct quadTree * root)
 
 /* Post order traversal to get astro body on leave node */
 /* Visting child starting from TL, clock-wise*/
+/* Save visited node on linked list */
 static void
 post_traversal(struct quadTree * root,int old){
     if(root == NULL) return;
@@ -325,8 +351,8 @@ post_traversal(struct quadTree * root,int old){
         if(root->parent){
             post_traversal(root->child_TL,old);
             post_traversal(root->child_TR,old);
-            post_traversal(root->child_BL,old);
             post_traversal(root->child_BR,old);
+            post_traversal(root->child_BL,old);
         }else{
             printf("x: %f, y: %f \n",root->body->x[old],root->body->y[old]);
         }
