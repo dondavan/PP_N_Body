@@ -11,7 +11,7 @@ nbody-par: nbody-par.c
 	mpicc $(CFLAGS) -o nbody-par nbody-par.c -lm
 
 par-run:
-	mpirun -np 4 ./nbody-par 32 2 ../nbody.ppm 1000000
+	mpirun -np 4 ./nbody-par 10 2 ../nbody.ppm 1000000
 
 clean:
 	rm -f *.o nbody-seq nbody-par *~ *core

@@ -137,23 +137,24 @@ init_node(struct quadTree * node,double xl,double xu,double yl,double yu){
     node->child_TL = NULL;
     node->child_TR = NULL;
 }
+
 static void
 print_tree(struct quadTree * root,int old,int depth)
 {
 
     printf("Depth : %d\n",depth);
-    printf("Parent  X: %f, Y: %f\n",root->body->x[old],root->body->y[old]);
+    printf("Parent  X: %f, Y: %f, Mass:%f\n",root->body->x[old],root->body->y[old],root->body->mass);
     if(root->child_TL != NULL){
-        printf("TL child  X: %f, Y: %f,     Mass:%f \n",root->child_TL->body->x[old],root->child_TL->body->y[old],root->child_TL->body->mass);
+        printf("TL child  X: %f, Y: %f, Mass:%f\n",root->child_TL->body->x[old],root->child_TL->body->y[old],root->child_TL->body->mass);
     }
     if(root->child_TR != NULL){
-        printf("TR child  X: %f, Y: %f,     Mass:%f \n",root->child_TR->body->x[old],root->child_TR->body->y[old],root->child_TR->body->mass);
+        printf("TR child  X: %f, Y: %f, Mass:%f\n",root->child_TR->body->x[old],root->child_TR->body->y[old],root->child_TR->body->mass);
     }
     if(root->child_BR != NULL){
-        printf("BR child  X: %f, Y: %f,     Mass:%f \n",root->child_BR->body->x[old],root->child_BR->body->y[old],root->child_BR->body->mass);
+        printf("BR child  X: %f, Y: %f, Mass:%f\n",root->child_BR->body->x[old],root->child_BR->body->y[old],root->child_BR->body->mass);
     }
     if(root->child_BL != NULL){
-        printf("BL child  X: %f, Y: %f,     Mass:%f \n",root->child_BL->body->x[old],root->child_BL->body->y[old],root->child_BL->body->mass);
+        printf("BL child  X: %f, Y: %f, Mass:%f\n",root->child_BL->body->x[old],root->child_BL->body->y[old],root->child_BL->body->mass);
     }
 
     if(root->child_TL != NULL){
@@ -169,6 +170,7 @@ print_tree(struct quadTree * root,int old,int depth)
         print_tree(root->child_BL,old,depth+1);
     }
 }
+
 /* Insert new quad tree node */
 static void
 insert_tree(struct quadTree * root, struct bodyType * body,int old)
@@ -185,7 +187,9 @@ insert_tree(struct quadTree * root, struct bodyType * body,int old)
 
             /* For new coming body */
             struct quadTree * newNode = malloc(sizeof(struct quadTree));
-        
+            struct  bodyType * newBody = malloc(sizeof(struct bodyType));
+            memcpy(newBody,body,sizeof(struct bodyType));
+            
             /* Space partition, insert new coming body */
             /* Body on boundry will be allocate to clock wise partition */
             /* Body on center will be allocate to TOP LEFT partition*/
@@ -195,7 +199,7 @@ insert_tree(struct quadTree * root, struct bodyType * body,int old)
                                             root ->xCenter,
                                             root ->yCenter,
                                             root ->yCenter + (root -> ydim)/2);
-                insert_tree(root->child_TL,body,old);
+                insert_tree(root->child_TL,newBody,old);
             }
             else if( ( body->x[old] > root ->xCenter || body->x[old] == root ->xCenter) && body->y[old] > root ->yCenter){
                 root->child_TR = newNode;
@@ -203,7 +207,7 @@ insert_tree(struct quadTree * root, struct bodyType * body,int old)
                                             root ->xCenter + (root -> xdim)/2,
                                             root ->yCenter,
                                             root ->yCenter + (root -> ydim)/2);
-                insert_tree(root->child_TR,body,old);
+                insert_tree(root->child_TR,newBody,old);
             }
             else if( ( body->x[old] < root ->xCenter || body->x[old] == root ->xCenter) && body->y[old] < root ->yCenter){
                 root->child_BL = newNode;
@@ -211,7 +215,7 @@ insert_tree(struct quadTree * root, struct bodyType * body,int old)
                                             root ->xCenter,
                                             root ->yCenter - (root -> ydim)/2,
                                             root ->yCenter);
-                insert_tree(root->child_BL,body,old);
+                insert_tree(root->child_BL,newBody,old);
             }
             else if(body->x[old] > root ->xCenter && ( body->y[old] < root ->yCenter ||  body->y[old] == root ->yCenter) ){
                 root->child_BR = newNode;
@@ -219,7 +223,7 @@ insert_tree(struct quadTree * root, struct bodyType * body,int old)
                                             root ->xCenter + (root -> xdim)/2,
                                             root ->yCenter - (root -> ydim)/2,
                                             root ->yCenter);
-                insert_tree(root->child_BR,body,old);
+                insert_tree(root->child_BR,newBody,old);
             }
             else if(body->x[old] == root ->xCenter && body->y[old] == root ->yCenter ){
                 root->child_TL = newNode;
@@ -227,14 +231,17 @@ insert_tree(struct quadTree * root, struct bodyType * body,int old)
                                             root ->xCenter,
                                             root ->yCenter,
                                             root ->yCenter + (root -> ydim)/2);
-                insert_tree(root->child_TL,body,old);
+                insert_tree(root->child_TL,newBody,old);
             }
             
             
+            struct  bodyType * oldBody = malloc(sizeof(struct bodyType));
+            memcpy(oldBody,root->body,sizeof(struct bodyType));
+
             /* Space partition, insert stored old body to child leave */
             if( (root->body)->x[old] < root ->xCenter && ( ((root->body)->y[old] > root ->yCenter) || ((root->body)->y[old] == root ->yCenter))){
                 if(root->child_TL != NULL){
-                    insert_tree(root->child_TL,root->body,old);
+                    insert_tree(root->child_TL,oldBody,old);
                 }else{
                     struct quadTree * oldNode = malloc(sizeof(struct quadTree));
                     root->child_TL = oldNode;
@@ -242,12 +249,12 @@ insert_tree(struct quadTree * root, struct bodyType * body,int old)
                                                 root ->xCenter,
                                                 root ->yCenter,
                                                 root ->yCenter + (root -> ydim)/2);
-                    insert_tree(root->child_TL,root->body,old);
+                    insert_tree(root->child_TL,oldBody,old);
                 }
             }
             else if( ( (root->body)->x[old] > root ->xCenter || (root->body)->x[old] == root ->xCenter)&& (root->body)->y[old] > root ->yCenter){
                 if(root->child_TR != NULL){
-                    insert_tree(root->child_TR,root->body,old);
+                    insert_tree(root->child_TR,oldBody,old);
                 }else{
                     struct quadTree * oldNode = malloc(sizeof(struct quadTree));
                     root->child_TR = oldNode;
@@ -255,12 +262,12 @@ insert_tree(struct quadTree * root, struct bodyType * body,int old)
                                                 root ->xCenter + (root -> xdim)/2,
                                                 root ->yCenter,
                                                 root ->yCenter + (root -> ydim)/2);
-                    insert_tree(root->child_TR,root->body,old);
+                    insert_tree(root->child_TR,oldBody,old);
                 }
             }
             else if( ( (root->body)->x[old] < root ->xCenter || (root->body)->x[old] == root ->xCenter)&& (root->body)->y[old] < root ->yCenter){
                 if(root->child_BL != NULL){
-                    insert_tree(root->child_BL,root->body,old);
+                    insert_tree(root->child_BL,oldBody,old);
                 }else{
                     struct quadTree * oldNode = malloc(sizeof(struct quadTree));
                     root->child_BL = oldNode;
@@ -268,12 +275,12 @@ insert_tree(struct quadTree * root, struct bodyType * body,int old)
                                                 root ->xCenter,
                                                  root ->yCenter - (root -> ydim)/2,
                                                 root ->yCenter);
-                    insert_tree(root->child_BL,root->body,old);
+                    insert_tree(root->child_BL,oldBody,old);
                 }    
             }
             else if((root->body)->x[old] > root ->xCenter && ( (root->body)->y[old] < root ->yCenter || (root->body)->y[old] == root ->yCenter ) ){
                 if(root->child_BR != NULL){
-                    insert_tree(root->child_BR,root->body,old);
+                    insert_tree(root->child_BR,oldBody,old);
                 }else{
                     struct quadTree * oldNode = malloc(sizeof(struct quadTree));
                     root->child_BR = oldNode;
@@ -281,12 +288,12 @@ insert_tree(struct quadTree * root, struct bodyType * body,int old)
                                                 root ->xCenter + (root -> xdim)/2,
                                                 root ->yCenter - (root -> ydim)/2,
                                                 root ->yCenter);
-                    insert_tree(root->child_BR,root->body,old);
+                    insert_tree(root->child_BR,oldBody,old);
                 }
             }
             else if((root->body)->x[old] == root ->xCenter && (root->body)->y[old] == root ->yCenter ){
                 if(root->child_TL != NULL){
-                    insert_tree(root->child_TL,root->body,old);
+                    insert_tree(root->child_TL,oldBody,old);
                 }else{
                     struct quadTree * oldNode = malloc(sizeof(struct quadTree));
                     root->child_TL = oldNode;
@@ -294,12 +301,18 @@ insert_tree(struct quadTree * root, struct bodyType * body,int old)
                                                 root ->xCenter,
                                                 root ->yCenter,
                                                 root ->yCenter + (root -> ydim)/2);
-                    insert_tree(root->child_TL,root->body,old);
+                    insert_tree(root->child_TL,oldBody,old);
                 }
             }
 
             root->divided = 1;
             root->parent = 1;
+            /*
+            struct  bodyType * parentBody = malloc(sizeof(struct bodyType));
+            root->body = parentBody;
+            root->body->x[old] = 0;
+            root->body->y[old] = 0;
+            */
 
         }else{
 
@@ -314,12 +327,14 @@ insert_tree(struct quadTree * root, struct bodyType * body,int old)
                     insert_tree(root->child_TL,body,old);
                 }else{
                     struct quadTree * newNode = malloc(sizeof(struct quadTree));
+                    struct  bodyType * newBody = malloc(sizeof(struct bodyType));
+                    memcpy(newBody,body,sizeof(struct bodyType));
                     root->child_TL = newNode;
                     init_node(root->child_TL,   root ->xCenter - (root -> xdim)/2,
                                                 root ->xCenter,
                                                 root ->yCenter,
                                                 root ->yCenter + (root -> ydim)/2);
-                    insert_tree(root->child_TL,body,old);
+                    insert_tree(root->child_TL,newBody,old);
                 }
             }
             else if( ( body->x[old] > root ->xCenter || body->x[old] == root ->xCenter) && body->y[old] > root ->yCenter){
@@ -327,12 +342,14 @@ insert_tree(struct quadTree * root, struct bodyType * body,int old)
                     insert_tree(root->child_TR,body,old);
                 }else{
                     struct quadTree * newNode = malloc(sizeof(struct quadTree));
+                    struct  bodyType * newBody = malloc(sizeof(struct bodyType));
+                    memcpy(newBody,body,sizeof(struct bodyType));
                     root->child_TR = newNode;
                     init_node(root->child_TR,   root ->xCenter,
                                                 root ->xCenter + (root -> xdim)/2,
                                                 root ->yCenter,
                                                 root ->yCenter + (root -> ydim)/2);
-                    insert_tree(root->child_TR,body,old);
+                    insert_tree(root->child_TR,newBody,old);
                 }
 
             }
@@ -341,12 +358,14 @@ insert_tree(struct quadTree * root, struct bodyType * body,int old)
                     insert_tree(root->child_BL,body,old);
                 }else{
                     struct quadTree * newNode = malloc(sizeof(struct quadTree));
+                    struct  bodyType * newBody = malloc(sizeof(struct bodyType));
+                    memcpy(newBody,body,sizeof(struct bodyType));
                     root->child_BL = newNode;
                     init_node(root->child_BL,   root ->xCenter - (root -> xdim)/2,
                                                 root ->xCenter,
                                                 root ->yCenter - (root -> ydim)/2,
                                                 root ->yCenter);
-                    insert_tree(root->child_BL,body,old);
+                    insert_tree(root->child_BL,newBody,old);
                 }
                 
             }
@@ -355,12 +374,14 @@ insert_tree(struct quadTree * root, struct bodyType * body,int old)
                     insert_tree(root->child_BR,body,old);
                 }else{
                     struct quadTree * newNode = malloc(sizeof(struct quadTree));
+                    struct  bodyType * newBody = malloc(sizeof(struct bodyType));
+                    memcpy(newBody,body,sizeof(struct bodyType));
                     root->child_BR = newNode;
                     init_node(root->child_BR,   root ->xCenter,
                                                 root ->xCenter + (root -> xdim)/2,
                                                 root ->yCenter - (root -> ydim)/2,
                                                 root ->yCenter);
-                    insert_tree(root->child_BR,body,old);
+                    insert_tree(root->child_BR,newBody,old);
                 }
             }
             else if(body->x[old] == root ->xCenter && body->y[old] == root ->yCenter ){
@@ -368,12 +389,14 @@ insert_tree(struct quadTree * root, struct bodyType * body,int old)
                     insert_tree(root->child_TL,body,old);
                 }else{
                     struct quadTree * newNode = malloc(sizeof(struct quadTree));
+                    struct  bodyType * newBody = malloc(sizeof(struct bodyType));
+                    memcpy(newBody,body,sizeof(struct bodyType));
                     root->child_TL = newNode;
                     init_node(root->child_TL,   root ->xCenter - (root -> xdim)/2,
                                                 root ->xCenter,
                                                 root ->yCenter,
                                                 root ->yCenter + (root -> ydim)/2);
-                    insert_tree(root->child_TL,body,old);
+                    insert_tree(root->child_TL,newBody,old);
                 }
             }
             
@@ -444,6 +467,7 @@ compute_center_mass(struct quadTree * root,int old, struct linkedList ** head){
             root->body->x[old] = x_sum/mass_sum;
             root->body->y[old] = y_sum/mass_sum;
             
+            /*
             printf("X: %f, Y: %f,     Mass:%f \n",root->body->x[old],root->body->y[old],root->body->mass);
 
             if(root->child_TL != NULL){
@@ -459,6 +483,7 @@ compute_center_mass(struct quadTree * root,int old, struct linkedList ** head){
                 printf("BL child  X: %f, Y: %f,     Mass:%f \n",root->child_BL->body->x[old],root->child_BL->body->y[old],root->child_BL->body->mass);
             }
             printf("\n");
+            */
 
         }else{
             //printf("X: %f, Y: %f\n",root->body->x[old],root->body->y[old]);
@@ -853,9 +878,9 @@ main(int argc, char **argv)
         struct quadTree * treeRoot = malloc(sizeof(struct quadTree));
         memset(treeRoot, 0, sizeof(struct quadTree)); 
         build_tree(world,treeRoot);
-        //print_tree(treeRoot,world->old,0);
         struct linkedList * listHead = NULL;
         compute_center_mass(treeRoot,world->old,&listHead);
+        print_tree(treeRoot,world->old,0);
         visit_list(&listHead,world->old);
     }
 
