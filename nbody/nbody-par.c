@@ -79,7 +79,7 @@ struct quadTree {
 /* Linked List to link all leave node */
 struct linkedList
 {
-  struct quadTree * node;
+  struct bodyType * body;
   struct linkedList* next;
 
 };
@@ -95,7 +95,7 @@ struct linkedList
 #define XV(w, B)       (w)->bodies[B].xv
 #define YV(w, B)       (w)->bodies[B].yv
 #define R(w, B)        (w)->bodies[B].radius
-#define M(w, B)        (w)->bodies[B].mass
+#define M(w, B)        (w)->bodies[B].massdds
 
 static void
 init_node(struct quadTree * node,double xl,double xu,double yl,double yu){
@@ -345,7 +345,7 @@ build_tree(struct world *world,struct quadTree * root)
 /* Visting child starting from TL, clock-wise*/
 /* Save visited node on linked list */
 static void
-post_traversal(struct quadTree * root,int old){
+post_traversal(struct quadTree * root,int old, struct linkedList * head){
     if(root == NULL) return;
     else{
         if(root->parent){
@@ -354,11 +354,17 @@ post_traversal(struct quadTree * root,int old){
             post_traversal(root->child_BR,old);
             post_traversal(root->child_BL,old);
         }else{
+            head->body = root->body;
+            struct linkedList * listNode = malloc(sizeof(struct linkedList));
+            head->next = listNode;
+            head = head->next;
             printf("x: %f, y: %f \n",root->body->x[old],root->body->y[old]);
         }
     }
 
 }
+
+
 
 /* Clear accumlated forces on each astro body*/
 static void
@@ -744,7 +750,8 @@ main(int argc, char **argv)
         struct quadTree * treeRoot = malloc(sizeof(struct quadTree));
         memset(treeRoot, 0, sizeof(struct quadTree)); 
         build_tree(world,treeRoot);
-        post_traversal(treeRoot,world->old);
+        struct linkedList * listHead = malloc(sizeof(struct linkedList));
+        post_traversal(treeRoot,world->old,listHead);
     }
 
     /* Main Loop */
