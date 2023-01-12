@@ -101,9 +101,9 @@ struct linkedList
 static void
 visit_list(struct linkedList ** head,int old){
     struct linkedList * cursor = * head;
-    //printf("list:\n");
+    printf("list:\n");
     while(cursor  != NULL){
-        //printf("X: %f, Y: %f,          Mass:%f\n",cursor->body->x[old],cursor->body->y[old],cursor->body->mass);
+        printf("X: %f, Y: %f, Mass: %f\n",cursor->body->x[old],cursor->body->y[old],cursor->body->mass);
         cursor  = cursor -> next;
     }
 }
@@ -467,26 +467,8 @@ compute_center_mass(struct quadTree * root,int old, struct linkedList ** head){
             root->body->x[old] = x_sum/mass_sum;
             root->body->y[old] = y_sum/mass_sum;
             
-            /*
-            printf("X: %f, Y: %f,     Mass:%f \n",root->body->x[old],root->body->y[old],root->body->mass);
-
-            if(root->child_TL != NULL){
-                printf("TL child  X: %f, Y: %f,     Mass:%f \n",root->child_TL->body->x[old],root->child_TL->body->y[old],root->child_TL->body->mass);
-            }
-            if(root->child_TR != NULL){
-                printf("TR child  X: %f, Y: %f,     Mass:%f \n",root->child_TR->body->x[old],root->child_TR->body->y[old],root->child_TR->body->mass);
-            }
-            if(root->child_BR != NULL){
-                printf("BR child  X: %f, Y: %f,     Mass:%f \n",root->child_BR->body->x[old],root->child_BR->body->y[old],root->child_BR->body->mass);
-            }
-            if(root->child_BL != NULL){
-                printf("BL child  X: %f, Y: %f,     Mass:%f \n",root->child_BL->body->x[old],root->child_BL->body->y[old],root->child_BL->body->mass);
-            }
-            printf("\n");
-            */
 
         }else{
-            //printf("X: %f, Y: %f\n",root->body->x[old],root->body->y[old]);
             insert_list(head,root->body);
         }
     }
@@ -617,7 +599,6 @@ filemap_close(struct filemap *filemap)
     munmap(filemap->map, filemap->fsize);
 }
 
-
 static unsigned char *
 Eat_Space(unsigned char *p)
 {
@@ -636,7 +617,6 @@ Eat_Space(unsigned char *p)
 
     return p;
 }
-
 
 static unsigned char *
 Get_Number(unsigned char *p, int *n)
@@ -659,7 +639,6 @@ Get_Number(unsigned char *p, int *n)
 
     return p;
 }
-
 
 static int
 map_P6(const char *filename, int *xdim, int *ydim, struct filemap *filemap)
@@ -727,7 +706,6 @@ ppm_abort:
 
     return -1;
 }
-
 
 static inline void
 color(const struct world *world, unsigned char *image, int x, int y, int b)
@@ -878,7 +856,7 @@ main(int argc, char **argv)
         struct quadTree * treeRoot = malloc(sizeof(struct quadTree));
         memset(treeRoot, 0, sizeof(struct quadTree)); 
         build_tree(world,treeRoot);
-        print_tree(treeRoot,world->old,0);
+        //print_tree(treeRoot,world->old,0);
         struct linkedList * listHead = NULL;
         compute_center_mass(treeRoot,world->old,&listHead);
         visit_list(&listHead,world->old);
