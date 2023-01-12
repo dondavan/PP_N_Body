@@ -307,11 +307,11 @@ insert_tree(struct quadTree * root, struct bodyType * body,int old)
 
             root->divided = 1;
             root->parent = 1;
+
             /*
             struct  bodyType * parentBody = malloc(sizeof(struct bodyType));
+            memset(parentBody, 0, sizeof(struct bodyType));
             root->body = parentBody;
-            root->body->x[old] = 0;
-            root->body->y[old] = 0;
             */
 
         }else{
@@ -878,9 +878,9 @@ main(int argc, char **argv)
         struct quadTree * treeRoot = malloc(sizeof(struct quadTree));
         memset(treeRoot, 0, sizeof(struct quadTree)); 
         build_tree(world,treeRoot);
+        print_tree(treeRoot,world->old,0);
         struct linkedList * listHead = NULL;
         compute_center_mass(treeRoot,world->old,&listHead);
-        print_tree(treeRoot,world->old,0);
         visit_list(&listHead,world->old);
     }
 
