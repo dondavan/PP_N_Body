@@ -101,8 +101,9 @@ struct linkedList
 static void
 visit_list(struct linkedList ** head,int old){
     struct linkedList * cursor = * head;
+    //printf("list:\n");
     while(cursor  != NULL){
-        printf("X: %f, Y: %f\n",cursor->body->x[old],cursor->body->y[old]);
+        //printf("X: %f, Y: %f,          Mass:%f\n",cursor->body->x[old],cursor->body->y[old],cursor->body->mass);
         cursor  = cursor -> next;
     }
 }
@@ -136,7 +137,38 @@ init_node(struct quadTree * node,double xl,double xu,double yl,double yu){
     node->child_TL = NULL;
     node->child_TR = NULL;
 }
+static void
+print_tree(struct quadTree * root,int old,int depth)
+{
 
+    printf("Depth : %d\n",depth);
+    printf("Parent  X: %f, Y: %f\n",root->body->x[old],root->body->y[old]);
+    if(root->child_TL != NULL){
+        printf("TL child  X: %f, Y: %f,     Mass:%f \n",root->child_TL->body->x[old],root->child_TL->body->y[old],root->child_TL->body->mass);
+    }
+    if(root->child_TR != NULL){
+        printf("TR child  X: %f, Y: %f,     Mass:%f \n",root->child_TR->body->x[old],root->child_TR->body->y[old],root->child_TR->body->mass);
+    }
+    if(root->child_BR != NULL){
+        printf("BR child  X: %f, Y: %f,     Mass:%f \n",root->child_BR->body->x[old],root->child_BR->body->y[old],root->child_BR->body->mass);
+    }
+    if(root->child_BL != NULL){
+        printf("BL child  X: %f, Y: %f,     Mass:%f \n",root->child_BL->body->x[old],root->child_BL->body->y[old],root->child_BL->body->mass);
+    }
+
+    if(root->child_TL != NULL){
+        print_tree(root->child_TL,old,depth+1);
+    }
+    if(root->child_TR != NULL){
+        print_tree(root->child_TR,old,depth+1);
+    }
+    if(root->child_BR != NULL){
+        print_tree(root->child_BR,old,depth+1);
+    }
+    if(root->child_BL != NULL){
+        print_tree(root->child_BL,old,depth+1);
+    }
+}
 /* Insert new quad tree node */
 static void
 insert_tree(struct quadTree * root, struct bodyType * body,int old)
@@ -366,19 +398,70 @@ build_tree(struct world *world,struct quadTree * root)
     }
 }
 
-/* Post order traversal to get astro body on leave node */
+/* Post order traversal to compute center of mass */
 /* Visting child starting from TL, clock-wise*/
 /* Save visited node on linked list */
 static void
-post_traversal(struct quadTree * root,int old, struct linkedList ** head){
+compute_center_mass(struct quadTree * root,int old, struct linkedList ** head){
     if(root == NULL) return;
     else{
         if(root->parent){
-            post_traversal(root->child_TL,old,head);
-            post_traversal(root->child_TR,old,head);
-            post_traversal(root->child_BR,old,head);
-            post_traversal(root->child_BL,old,head);
+            compute_center_mass(root->child_TL,old,head);
+            compute_center_mass(root->child_TR,old,head);
+            compute_center_mass(root->child_BR,old,head);
+            compute_center_mass(root->child_BL,old,head);
+
+
+            int mass_sum = 0;
+            int x_sum = 0;
+            int y_sum = 0;
+
+            if(root->child_TL != NULL){
+                mass_sum += root->child_TL->body->mass;
+                x_sum += root->child_TL->body->x[old] * root->child_TL->body->mass;
+                y_sum += root->child_TL->body->y[old] * root->child_TL->body->mass;
+                //printf("TL child  X: %f, Y: %f,     Mass:%f \n",root->child_TL->body->x[old],root->child_TL->body->y[old],root->child_TL->body->mass);
+            }
+            if(root->child_TR != NULL){
+                mass_sum += root->child_TR->body->mass;
+                x_sum += root->child_TR->body->x[old] * root->child_TR->body->mass;
+                y_sum += root->child_TR->body->y[old] * root->child_TR->body->mass;
+                //printf("TR child  X: %f, Y: %f,     Mass:%f \n",root->child_TR->body->x[old],root->child_TR->body->y[old],root->child_TR->body->mass);
+            }
+            if(root->child_BR != NULL){
+                mass_sum += root->child_BR->body->mass;
+                x_sum += root->child_BR->body->x[old] * root->child_BR->body->mass;
+                y_sum += root->child_BR->body->y[old] * root->child_BR->body->mass;
+                //printf("BR child  X: %f, Y: %f,     Mass:%f \n",root->child_BR->body->x[old],root->child_BR->body->y[old],root->child_BR->body->mass);
+            }
+            if(root->child_BL != NULL){
+                mass_sum += root->child_BL->body->mass;
+                x_sum += root->child_BL->body->x[old] * root->child_BL->body->mass;
+                y_sum += root->child_BL->body->y[old] * root->child_BL->body->mass;
+                //printf("BL child  X: %f, Y: %f,     Mass:%f \n",root->child_BL->body->x[old],root->child_BL->body->y[old],root->child_BL->body->mass);
+            }
+            root->body->mass = mass_sum;
+            root->body->x[old] = x_sum/mass_sum;
+            root->body->y[old] = y_sum/mass_sum;
+            
+            printf("X: %f, Y: %f,     Mass:%f \n",root->body->x[old],root->body->y[old],root->body->mass);
+
+            if(root->child_TL != NULL){
+                printf("TL child  X: %f, Y: %f,     Mass:%f \n",root->child_TL->body->x[old],root->child_TL->body->y[old],root->child_TL->body->mass);
+            }
+            if(root->child_TR != NULL){
+                printf("TR child  X: %f, Y: %f,     Mass:%f \n",root->child_TR->body->x[old],root->child_TR->body->y[old],root->child_TR->body->mass);
+            }
+            if(root->child_BR != NULL){
+                printf("BR child  X: %f, Y: %f,     Mass:%f \n",root->child_BR->body->x[old],root->child_BR->body->y[old],root->child_BR->body->mass);
+            }
+            if(root->child_BL != NULL){
+                printf("BL child  X: %f, Y: %f,     Mass:%f \n",root->child_BL->body->x[old],root->child_BL->body->y[old],root->child_BL->body->mass);
+            }
+            printf("\n");
+
         }else{
+            //printf("X: %f, Y: %f\n",root->body->x[old],root->body->y[old]);
             insert_list(head,root->body);
         }
     }
@@ -770,8 +853,9 @@ main(int argc, char **argv)
         struct quadTree * treeRoot = malloc(sizeof(struct quadTree));
         memset(treeRoot, 0, sizeof(struct quadTree)); 
         build_tree(world,treeRoot);
+        //print_tree(treeRoot,world->old,0);
         struct linkedList * listHead = NULL;
-        post_traversal(treeRoot,world->old,&listHead);
+        compute_center_mass(treeRoot,world->old,&listHead);
         visit_list(&listHead,world->old);
     }
 
