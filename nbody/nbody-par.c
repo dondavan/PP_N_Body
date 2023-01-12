@@ -95,7 +95,32 @@ struct linkedList
 #define XV(w, B)       (w)->bodies[B].xv
 #define YV(w, B)       (w)->bodies[B].yv
 #define R(w, B)        (w)->bodies[B].radius
-#define M(w, B)        (w)->bodies[B].massdds
+#define M(w, B)        (w)->bodies[B].mass
+
+/* Visit linked list*/
+static void
+visit_list(struct linkedList ** head,int old){
+    struct linkedList * cursor = * head;
+    while(cursor  != NULL){
+        printf("X: %f, Y: %f\n",cursor->body->x[old],cursor->body->y[old]);
+        cursor  = cursor -> next;
+    }
+}
+
+/* Linked list insert*/
+static void
+insert_list(struct linkedList ** head, struct bodyType * body){
+    struct linkedList * listNode =(struct linkedList *) malloc(sizeof(struct linkedList));
+    struct linkedList * cursor = * head;
+    listNode -> body = body;
+    listNode -> next = NULL;
+    if(*head == NULL){
+        *head = listNode;
+        return;
+    }
+    while(cursor->next != NULL)cursor = cursor -> next;
+    cursor->next = listNode;
+}
 
 static void
 init_node(struct quadTree * node,double xl,double xu,double yl,double yu){
@@ -345,25 +370,20 @@ build_tree(struct world *world,struct quadTree * root)
 /* Visting child starting from TL, clock-wise*/
 /* Save visited node on linked list */
 static void
-post_traversal(struct quadTree * root,int old, struct linkedList * head){
+post_traversal(struct quadTree * root,int old, struct linkedList ** head){
     if(root == NULL) return;
     else{
         if(root->parent){
-            post_traversal(root->child_TL,old);
-            post_traversal(root->child_TR,old);
-            post_traversal(root->child_BR,old);
-            post_traversal(root->child_BL,old);
+            post_traversal(root->child_TL,old,head);
+            post_traversal(root->child_TR,old,head);
+            post_traversal(root->child_BR,old,head);
+            post_traversal(root->child_BL,old,head);
         }else{
-            head->body = root->body;
-            struct linkedList * listNode = malloc(sizeof(struct linkedList));
-            head->next = listNode;
-            head = head->next;
-            printf("x: %f, y: %f \n",root->body->x[old],root->body->y[old]);
+            insert_list(head,root->body);
         }
     }
 
 }
-
 
 
 /* Clear accumlated forces on each astro body*/
@@ -750,8 +770,9 @@ main(int argc, char **argv)
         struct quadTree * treeRoot = malloc(sizeof(struct quadTree));
         memset(treeRoot, 0, sizeof(struct quadTree)); 
         build_tree(world,treeRoot);
-        struct linkedList * listHead = malloc(sizeof(struct linkedList));
-        post_traversal(treeRoot,world->old,listHead);
+        struct linkedList * listHead = NULL;
+        post_traversal(treeRoot,world->old,&listHead);
+        visit_list(&listHead,world->old);
     }
 
     /* Main Loop */
