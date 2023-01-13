@@ -56,6 +56,9 @@ struct jobList
 };
 
 
+
+
+
 /*  Macros to hide memory layout
 */
 #define X(w, B)        (w)->bodies[B].x[(w)->old]
@@ -87,9 +90,9 @@ append_list(struct jobList ** jobList,int x1,int x2)
 static void
 list_traversal(struct jobList ** head){
     struct jobList * cursor = * head;
-    printf("list:\n");
+    //printf("list:\n");
     while(cursor  != NULL){
-        printf("X1: %d, X2: %d\n",cursor->job->bodyPar[0],cursor->job->bodyPar[1]);
+        //printf("X1: %d, X2: %d\n",cursor->job->bodyPar[0],cursor->job->bodyPar[1]);
         cursor  = cursor -> next;
     }
 }
@@ -104,9 +107,9 @@ generate_job(struct world *world,struct jobList ** jobList, int MPI_world,int MP
     int jobIndex = 0;
 
     struct jobList ** cursor = jobList;
-    for(int i = 1; i <= world->bodyCt; i++)
+    for(int i = 0; i < world->bodyCt; i++)
     {
-        for (int j = i+1; j <= world->bodyCt; j++)
+        for (int j = i+1; j < world->bodyCt; j++)
         {
             amount += 1;            
         }
@@ -115,9 +118,9 @@ generate_job(struct world *world,struct jobList ** jobList, int MPI_world,int MP
     sec_end = sec_begin + amount / MPI_world;
     if(MPI_rank == MPI_world - 1)sec_end = amount;
     
-    for(int i = 1; i <= world->bodyCt; i++)
+    for(int i = 0; i < world->bodyCt; i++)
     {
-        for (int j = i+1; j <= world->bodyCt; j++)
+        for (int j = i+1; j < world->bodyCt; j++)
         {           
             /* If job index is within section, add to job list*/
             if( (jobIndex > sec_begin || jobIndex == sec_begin)&&(jobIndex < sec_end || jobIndex == sec_end) ){
@@ -138,9 +141,6 @@ generate_job(struct world *world,struct jobList ** jobList, int MPI_world,int MP
     return amount;
 }
 
-/**/
-
-
 static void
 clear_forces(struct world *world)
 {
@@ -153,35 +153,59 @@ clear_forces(struct world *world)
 }
 
 static void
-compute_forces(struct world *world)
+compute_forces(struct world *world,struct jobList ** jobList)
 {
     int b, c;
 
+    //list_traversal(jobList);
     /* Incrementally accumulate forces from each body pair,
        skipping force of body on itself (c == b)
     */
-    for (b = 0; b < world->bodyCt; ++b) {
-        for (c = b + 1; c < world->bodyCt; ++c) {
-            double dx = X(world, c) - X(world, b);
-            double dy = Y(world, c) - Y(world, b);
-            double angle = atan2(dy, dx);
-            double dsqr = dx*dx + dy*dy;
-            double mindist = R(world, b) + R(world, c);
-            double mindsqr = mindist*mindist;
-            double forced = ((dsqr < mindsqr) ? mindsqr : dsqr);
-            double force = M(world, b) * M(world, c) * GRAVITY / forced;
-            double xf = force * cos(angle);
-            double yf = force * sin(angle);
+   struct jobList * cursor = * jobList;
+    while(cursor  != NULL){
+        b = cursor->job->bodyPar[0];
+        c = cursor->job->bodyPar[1];
+        double dx = X(world, c) - X(world, b);
+        double dy = Y(world, c) - Y(world, b);
+        double angle = atan2(dy, dx);
+        double dsqr = dx*dx + dy*dy;
+        double mindist = R(world, b) + R(world, c);
+        double mindsqr = mindist*mindist;
+        double forced = ((dsqr < mindsqr) ? mindsqr : dsqr);
+        double force = M(world, b) * M(world, c) * GRAVITY / forced;
+        double xf = force * cos(angle);
+        double yf = force * sin(angle);
 
-            /* Slightly sneaky...
-               force of b on c is negative of c on b;
-            */
-            XF(world, b) += xf;
-            YF(world, b) += yf;
-            XF(world, c) -= xf;
-            YF(world, c) -= yf;
-        }
+        /* Slightly sneaky...
+            force of b on c is negative of c on b;
+        */
+        XF(world, b) += xf;
+        YF(world, b) += yf;
+        XF(world, c) -= xf;
+        YF(world, c) -= yf;
+        cursor  = cursor -> next;
     }
+    
+}
+
+
+/* Version 1.0 Gather*/
+/* Possible : sequential gather to hide latency*/
+static void
+merge_force(double * world_X_force,double * world_Y_force,double * parallel_X_force,double * parallel_Y_force,int MPI_world,struct world *world)
+{
+    for(int i =0;i<world->bodyCt;i++){
+        world_X_force[i] = world->bodies[i].xf;
+        world_Y_force[i] = world->bodies[i].yf;
+    }
+    //memcpy(parallel_X_force,world_X_force,world->bodyCt);
+    printf("+++++++++++++++++++++++++++++++++\n");
+    for(int i =0;i< world->bodyCt;i++)printf("X: %f,Y: %f\n",world_X_force[i],world_Y_force[i]);
+    
+    /*
+    MPI_Gather(world_X_force,world->bodyCt,MPI_DOUBLE,parallel_X_force,world->bodyCt,MPI_DOUBLE,0,MPI_COMM_WORLD);
+    MPI_Gather(world_Y_force,world->bodyCt,MPI_DOUBLE,parallel_Y_force,world->bodyCt,MPI_DOUBLE,0,MPI_COMM_WORLD);
+    */
 }
 
 static void
@@ -467,11 +491,30 @@ main(int argc, char **argv)
     MPI_Comm_rank(MPI_COMM_WORLD, &MPI_rank);   // GET current node rank
     MPI_Comm_size(MPI_COMM_WORLD, &MPI_world);  // GET total node size
 
-    struct world *world = calloc(1, sizeof *world);
+    struct world * world = calloc(1, sizeof *world);
+
+    /* Store body XY forces for parallel communication */
+    double * world_X_force = malloc(world->bodyCt*(sizeof(double)));
+    double * world_Y_force = malloc(world->bodyCt*(sizeof(double)));
+
+    double * parallel_X_force = NULL;
+    double * parallel_Y_force = NULL;
+
+    /* If root node, create space to store forces from different node*/
+    if(MPI_rank == 0){
+        parallel_X_force = malloc((MPI_world * world->bodyCt) * (sizeof(double)));
+        parallel_Y_force = malloc((MPI_world * world->bodyCt) * (sizeof(double)));
+        if (parallel_X_force == NULL || parallel_Y_force == NULL) {
+        fprintf(stderr, "Cannot calloc(parallel foreces)\n");
+        exit(1);
+        }
+    }
+
     if (world == NULL) {
         fprintf(stderr, "Cannot calloc(world)\n");
         exit(1);
     }
+
 
     /* Get Parameters */
     if (argc != 5) {
@@ -515,14 +558,16 @@ main(int argc, char **argv)
     
     struct jobList * jobList = NULL;
     generate_job(world,&jobList,MPI_world,MPI_rank);
-    if(MPI_rank == MPI_world-1)list_traversal(&jobList);
 
     /* Main Loop */
     for (int step = 0; step < steps; step++) {
 
 
         clear_forces(world);
-        compute_forces(world);
+        compute_forces(world,&jobList);
+        /* Root gather force data from other node */
+        /* Merege force on bodies from different world */
+        if(MPI_rank == 0)merge_force(world_X_force,world_Y_force,parallel_X_force,parallel_Y_force,MPI_world,world);
         compute_velocities(world);
         compute_positions(world);
 
@@ -548,6 +593,7 @@ main(int argc, char **argv)
 
     print(world);
 
+    fprintf(stderr, "\nCore: %d", MPI_rank);
     fprintf(stderr, "\nN-body took: %.3f seconds\n", rtime);
     fprintf(stderr, "Performance N-body: %.2f GFLOPS\n", nr_flops(world->bodyCt, steps) / 1e9 / rtime);
 

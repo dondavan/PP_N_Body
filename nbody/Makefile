@@ -13,5 +13,8 @@ nbody-par: nbody-par.c
 par-run:
 	mpirun -np 4 ./nbody-par 32 2 ../nbody.ppm 1000000
 
+seq-run:
+	./nbody-seq 32 2 ../nbody.ppm 1000000
+
 clean:
 	rm -f *.o nbody-seq nbody-par *~ *core
