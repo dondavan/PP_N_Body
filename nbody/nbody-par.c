@@ -50,6 +50,7 @@ struct job
 
 struct jobList
 {
+
     struct job * job;
     struct jobList * next;
 };
@@ -69,14 +70,28 @@ struct jobList
 #define M(w, B)        (w)->bodies[B].mass
 
 /* Append linked list*/
-static void
-append_list(struct jobList * jobList,int x1,int x2)
+static struct jobList **
+append_list(struct jobList ** jobList,int x1,int x2)
 {
     struct jobList * jobNode = (struct jobList *)malloc(sizeof(struct jobList));
-    printf("X:%d ,Y:%d\n",jobNode -> job -> bodyPar[0],jobNode -> job -> bodyPar[1]);
-    jobNode -> job -> bodyPar[0] = x1;
-    jobNode -> job -> bodyPar[1] = x2;
+    struct job * job= (struct job *)malloc(sizeof(struct job));
+    job->bodyPar[0] = x1;
+    job->bodyPar[1] = x2;
+    jobNode->job = job;
+    jobNode->next = NULL;
+    *jobList = jobNode;
+    return &(jobNode->next);
+}
 
+/* Visit linked list*/
+static void
+list_traversal(struct jobList ** head){
+    struct jobList * cursor = * head;
+    printf("list:\n");
+    while(cursor  != NULL){
+        printf("X1: %d, X2: %d\n",cursor->job->bodyPar[0],cursor->job->bodyPar[1]);
+        cursor  = cursor -> next;
+    }
 }
 
 /* Generate job for different node*/
@@ -84,17 +99,20 @@ static int
 generate_job(struct world *world,struct jobList ** jobList, int MPI_world)
 {
     int amount = 0;
-    struct jobList * cursor = *jobList;
+    struct jobList ** cursor = jobList;
     for(int i = 1; i <= world->bodyCt; i++)
     {
         for (int j = i+1; j <= world->bodyCt; j++)
         {
-            append_list(cursor,i,j);
+            cursor = append_list(cursor,i,j);
             amount += 1;            
         }
     }
     return amount;
 }
+
+/**/
+
 
 static void
 clear_forces(struct world *world)
@@ -108,14 +126,14 @@ clear_forces(struct world *world)
 }
 
 static void
-compute_forces(struct world *world,int begin,int end)
+compute_forces(struct world *world)
 {
     int b, c;
 
     /* Incrementally accumulate forces from each body pair,
        skipping force of body on itself (c == b)
     */
-    for (b = begin; b < end; ++b) {
+    for (b = 0; b < world->bodyCt; ++b) {
         for (c = b + 1; c < world->bodyCt; ++c) {
             double dx = X(world, c) - X(world, b);
             double dy = Y(world, c) - Y(world, b);
@@ -475,14 +493,17 @@ main(int argc, char **argv)
     if(MPI_rank == MPI_world - 1)sec_end = world->bodyCt;
     
     struct jobList * jobList = NULL;
-    generate_job(world,&jobList,MPI_world);
+    if(MPI_rank == 0){
+        generate_job(world,&jobList,MPI_world);
+        list_traversal(&jobList);
+    }
 
     /* Main Loop */
     for (int step = 0; step < steps; step++) {
 
 
         clear_forces(world);
-        compute_forces(world,sec_begin,sec_end);
+        compute_forces(world);
         compute_velocities(world);
         compute_positions(world);
 
