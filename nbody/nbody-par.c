@@ -96,18 +96,45 @@ list_traversal(struct jobList ** head){
 
 /* Generate job for different node*/
 static int
-generate_job(struct world *world,struct jobList ** jobList, int MPI_world)
+generate_job(struct world *world,struct jobList ** jobList, int MPI_world,int MPI_rank)
 {
     int amount = 0;
+    /* Jobs are seprated into sections */
+    int sec_begin,sec_end;
+    int jobIndex = 0;
+
     struct jobList ** cursor = jobList;
     for(int i = 1; i <= world->bodyCt; i++)
     {
         for (int j = i+1; j <= world->bodyCt; j++)
         {
-            cursor = append_list(cursor,i,j);
             amount += 1;            
         }
     }
+    sec_begin = MPI_rank * (int)(amount / MPI_world);
+    sec_end = sec_begin + amount / MPI_world;
+    if(MPI_rank == MPI_world - 1)sec_end = amount;
+    
+    for(int i = 1; i <= world->bodyCt; i++)
+    {
+        for (int j = i+1; j <= world->bodyCt; j++)
+        {           
+            /* If job index is within section, add to job list*/
+            if( (jobIndex > sec_begin || jobIndex == sec_begin)&&(jobIndex < sec_end || jobIndex == sec_end) ){
+                cursor = append_list(cursor,i,j);
+            }
+            jobIndex += 1;
+            if (jobIndex > sec_end)
+            {
+                break;
+            }
+        }
+        if (jobIndex > sec_end)
+        {
+            break;
+        }
+    }
+    
     return amount;
 }
 
@@ -485,18 +512,10 @@ main(int argc, char **argv)
         exit(1);
     }
 
-    /* Body are seprated into sections */
-    int sec_begin,sec_end;
-    sec_begin = MPI_rank * (int)(world->bodyCt / MPI_world);
-    sec_end = sec_begin + world->bodyCt / MPI_world;
-    
-    if(MPI_rank == MPI_world - 1)sec_end = world->bodyCt;
     
     struct jobList * jobList = NULL;
-    if(MPI_rank == 0){
-        generate_job(world,&jobList,MPI_world);
-        list_traversal(&jobList);
-    }
+    generate_job(world,&jobList,MPI_world,MPI_rank);
+    if(MPI_rank == MPI_world-1)list_traversal(&jobList);
 
     /* Main Loop */
     for (int step = 0; step < steps; step++) {
