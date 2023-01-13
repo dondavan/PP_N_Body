@@ -43,6 +43,18 @@ struct world {
     int                 ydim;
 };
 
+struct job
+{
+    int bodyPar[2];
+};
+
+struct jobList
+{
+    struct job * job;
+    struct jobList * next;
+};
+
+
 /*  Macros to hide memory layout
 */
 #define X(w, B)        (w)->bodies[B].x[(w)->old]
@@ -56,6 +68,33 @@ struct world {
 #define R(w, B)        (w)->bodies[B].radius
 #define M(w, B)        (w)->bodies[B].mass
 
+/* Append linked list*/
+static void
+append_list(struct jobList * jobList,int x1,int x2)
+{
+    struct jobList * jobNode = (struct jobList *)malloc(sizeof(struct jobList));
+    printf("X:%d ,Y:%d\n",jobNode -> job -> bodyPar[0],jobNode -> job -> bodyPar[1]);
+    jobNode -> job -> bodyPar[0] = x1;
+    jobNode -> job -> bodyPar[1] = x2;
+
+}
+
+/* Generate job for different node*/
+static int
+generate_job(struct world *world,struct jobList ** jobList, int MPI_world)
+{
+    int amount = 0;
+    struct jobList * cursor = *jobList;
+    for(int i = 1; i <= world->bodyCt; i++)
+    {
+        for (int j = i+1; j <= world->bodyCt; j++)
+        {
+            append_list(cursor,i,j);
+            amount += 1;            
+        }
+    }
+    return amount;
+}
 
 static void
 clear_forces(struct world *world)
@@ -69,14 +108,14 @@ clear_forces(struct world *world)
 }
 
 static void
-compute_forces(struct world *world)
+compute_forces(struct world *world,int begin,int end)
 {
     int b, c;
 
     /* Incrementally accumulate forces from each body pair,
        skipping force of body on itself (c == b)
     */
-    for (b = 0; b < world->bodyCt; ++b) {
+    for (b = begin; b < end; ++b) {
         for (c = b + 1; c < world->bodyCt; ++c) {
             double dx = X(world, c) - X(world, b);
             double dy = Y(world, c) - Y(world, b);
@@ -116,6 +155,7 @@ compute_velocities(struct world *world)
         XV(world, b) += (xf / M(world, b)) * DELTA_T;
         YV(world, b) += (yf / M(world, b)) * DELTA_T;
     }
+
 }
 
 static void
@@ -382,7 +422,6 @@ main(int argc, char **argv)
     MPI_Comm_rank(MPI_COMM_WORLD, &MPI_rank);   // GET current node rank
     MPI_Comm_size(MPI_COMM_WORLD, &MPI_world);  // GET total node size
 
-
     struct world *world = calloc(1, sizeof *world);
     if (world == NULL) {
         fprintf(stderr, "Cannot calloc(world)\n");
@@ -428,10 +467,22 @@ main(int argc, char **argv)
         exit(1);
     }
 
+    /* Body are seprated into sections */
+    int sec_begin,sec_end;
+    sec_begin = MPI_rank * (int)(world->bodyCt / MPI_world);
+    sec_end = sec_begin + world->bodyCt / MPI_world;
+    
+    if(MPI_rank == MPI_world - 1)sec_end = world->bodyCt;
+    
+    struct jobList * jobList = NULL;
+    generate_job(world,&jobList,MPI_world);
+
     /* Main Loop */
     for (int step = 0; step < steps; step++) {
+
+
         clear_forces(world);
-        compute_forces(world);
+        compute_forces(world,sec_begin,sec_end);
         compute_velocities(world);
         compute_positions(world);
 
