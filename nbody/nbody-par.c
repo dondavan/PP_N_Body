@@ -192,20 +192,26 @@ compute_forces(struct world *world,struct jobList ** jobList)
 /* Version 1.0 Gather*/
 /* Possible : sequential gather to hide latency*/
 static void
-merge_force(double * world_X_force,double * world_Y_force,double * parallel_X_force,double * parallel_Y_force,int MPI_world,struct world *world)
+merge_force(double * world_X_force,double * world_Y_force,double * parallel_X_force,double * parallel_Y_force,int MPI_world,struct world *world,int rank)
 {
+    
     for(int i =0;i<world->bodyCt;i++){
         world_X_force[i] = world->bodies[i].xf;
         world_Y_force[i] = world->bodies[i].yf;
     }
-    //memcpy(parallel_X_force,world_X_force,world->bodyCt);
-    printf("+++++++++++++++++++++++++++++++++\n");
-    for(int i =0;i< world->bodyCt;i++)printf("X: %f,Y: %f\n",world_X_force[i],world_Y_force[i]);
     
-    /*
     MPI_Gather(world_X_force,world->bodyCt,MPI_DOUBLE,parallel_X_force,world->bodyCt,MPI_DOUBLE,0,MPI_COMM_WORLD);
     MPI_Gather(world_Y_force,world->bodyCt,MPI_DOUBLE,parallel_Y_force,world->bodyCt,MPI_DOUBLE,0,MPI_COMM_WORLD);
-    */
+
+    int off_set = 0;
+    if(rank == 0){
+        for(int i = 1;i < MPI_world;i++){
+            off_set = i * world->bodyCt;
+            world_X_force[i] +=  parallel_X_force[i + off_set];
+            world_Y_force[i] +=  parallel_Y_force[i + off_set];
+        }
+    }
+    
 }
 
 static void
@@ -493,23 +499,6 @@ main(int argc, char **argv)
 
     struct world * world = calloc(1, sizeof *world);
 
-    /* Store body XY forces for parallel communication */
-    double * world_X_force = malloc(world->bodyCt*(sizeof(double)));
-    double * world_Y_force = malloc(world->bodyCt*(sizeof(double)));
-
-    double * parallel_X_force = NULL;
-    double * parallel_Y_force = NULL;
-
-    /* If root node, create space to store forces from different node*/
-    if(MPI_rank == 0){
-        parallel_X_force = malloc((MPI_world * world->bodyCt) * (sizeof(double)));
-        parallel_Y_force = malloc((MPI_world * world->bodyCt) * (sizeof(double)));
-        if (parallel_X_force == NULL || parallel_Y_force == NULL) {
-        fprintf(stderr, "Cannot calloc(parallel foreces)\n");
-        exit(1);
-        }
-    }
-
     if (world == NULL) {
         fprintf(stderr, "Cannot calloc(world)\n");
         exit(1);
@@ -550,6 +539,24 @@ main(int argc, char **argv)
         YV(world, b) = ((rand() % 20000) - 10000) / 2000.0;
     }
 
+    /* Store body XY forces for parallel communication */
+    double * world_X_force = malloc(world->bodyCt*(sizeof(double)));
+    double * world_Y_force = malloc(world->bodyCt*(sizeof(double)));
+
+    double * parallel_X_force = NULL;
+    double * parallel_Y_force = NULL;
+
+    /* If root node, create space to store forces from different node*/
+    if(MPI_rank == 0){
+        parallel_X_force = malloc((MPI_world * world->bodyCt) * (sizeof(double)));
+        parallel_Y_force = malloc((MPI_world * world->bodyCt) * (sizeof(double)));
+        if (parallel_X_force == NULL || parallel_Y_force == NULL) {
+        fprintf(stderr, "Cannot calloc(parallel foreces)\n");
+        exit(1);
+        }
+    }
+
+
     if (gettimeofday(&start, 0) != 0) {
         fprintf(stderr, "could not do timing\n");
         exit(1);
@@ -559,6 +566,7 @@ main(int argc, char **argv)
     struct jobList * jobList = NULL;
     generate_job(world,&jobList,MPI_world,MPI_rank);
 
+    int count =1;
     /* Main Loop */
     for (int step = 0; step < steps; step++) {
 
@@ -567,7 +575,12 @@ main(int argc, char **argv)
         compute_forces(world,&jobList);
         /* Root gather force data from other node */
         /* Merege force on bodies from different world */
-        if(MPI_rank == 0)merge_force(world_X_force,world_Y_force,parallel_X_force,parallel_Y_force,MPI_world,world);
+        merge_force(world_X_force,world_Y_force,parallel_X_force,parallel_Y_force,MPI_world,world,MPI_rank);
+        if(MPI_rank == 0 && count == 1){
+            count =0;
+            for(int i =0 ; i < MPI_world*world->bodyCt;i++)printf("X: %f, Y: %f\n",parallel_X_force[i],parallel_Y_force[i]);
+            printf("********************************************\n");
+        }
         compute_velocities(world);
         compute_positions(world);
 

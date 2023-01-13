@@ -1,6 +1,7 @@
 CFLAGS	+= -Wall
 CFLAGS	+= -O3
 CFLAGS	+= -g2
+export TMPDIR=/tmp
 
 all: nbody-seq
 
