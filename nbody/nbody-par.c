@@ -207,9 +207,19 @@ merge_force(double * world_X_force,double * world_Y_force,double * parallel_X_fo
     if(rank == 0){
         for(int i = 1;i < MPI_world;i++){
             off_set = i * world->bodyCt;
-            world_X_force[i] +=  parallel_X_force[i + off_set];
-            world_Y_force[i] +=  parallel_Y_force[i + off_set];
+            for(int j = 0; j < world->bodyCt; j++){
+                world_X_force[j] +=  parallel_X_force[j + off_set];
+                world_Y_force[j] +=  parallel_Y_force[j + off_set];
+            }
         }
+        /*
+        for(int i =0 ; i < world->bodyCt;i++)printf("X: %f, Y: %f\n",world_X_force[i],world_Y_force[i]);
+            printf("********************************************\n");
+
+            printf("Offset: %d, World: %d\n",off_set,world->bodyCt);
+            printf("X: %f, Y: %f\n", parallel_X_force[off_set],parallel_Y_force[off_set]);
+            printf("********************************************\n");
+            */
     }
     
 }
@@ -577,9 +587,9 @@ main(int argc, char **argv)
         /* Merege force on bodies from different world */
         merge_force(world_X_force,world_Y_force,parallel_X_force,parallel_Y_force,MPI_world,world,MPI_rank);
         if(MPI_rank == 0 && count == 1){
-            count =0;
-            for(int i =0 ; i < MPI_world*world->bodyCt;i++)printf("X: %f, Y: %f\n",parallel_X_force[i],parallel_Y_force[i]);
+            for(int i =0 ; i < world->bodyCt;i++)printf("X: %f, Y: %f\n",world_X_force[i],world_Y_force[i]);
             printf("********************************************\n");
+            count = 0;
         }
         compute_velocities(world);
         compute_positions(world);
