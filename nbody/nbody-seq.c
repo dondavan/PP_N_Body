@@ -424,13 +424,18 @@ main(int argc, char **argv)
         exit(1);
     }
 
+    int count =steps;
     /* Main Loop */
     for (int step = 0; step < steps; step++) {
         clear_forces(world);
         compute_forces(world);
         compute_velocities(world);
         compute_positions(world);
-
+        count--;
+        if(count == 1){
+            for(int i =0 ; i < world->bodyCt;i++)printf("X: %f, Y: %f\n",XV(world, i),YV(world, i));
+            printf("********************************************\n");
+        }
         /* Flip old & new coordinates */
         world->old ^= 1;
 

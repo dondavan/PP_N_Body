@@ -192,7 +192,9 @@ compute_forces(struct world *world,struct jobList ** jobList)
 /* Version 1.0 Gather*/
 /* Possible : sequential gather to hide latency*/
 static void
-merge_force(double * world_X_force,double * world_Y_force,double * parallel_X_force,double * parallel_Y_force,int MPI_world,struct world *world,int rank)
+merge_force(double * world_X_force,double * world_Y_force,
+            double * parallel_X_force,double * parallel_Y_force,
+            int MPI_world,struct world *world,int rank)
 {
     
     for(int i =0;i<world->bodyCt;i++){
@@ -205,6 +207,7 @@ merge_force(double * world_X_force,double * world_Y_force,double * parallel_X_fo
 
     int off_set = 0;
     if(rank == 0){
+        /* Merge force from different world to root world */
         for(int i = 1;i < MPI_world;i++){
             off_set = i * world->bodyCt;
             for(int j = 0; j < world->bodyCt; j++){
@@ -212,15 +215,44 @@ merge_force(double * world_X_force,double * world_Y_force,double * parallel_X_fo
                 world_Y_force[j] +=  parallel_Y_force[j + off_set];
             }
         }
-        /*
-        for(int i =0 ; i < world->bodyCt;i++)printf("X: %f, Y: %f\n",world_X_force[i],world_Y_force[i]);
-            printf("********************************************\n");
-
-            printf("Offset: %d, World: %d\n",off_set,world->bodyCt);
-            printf("X: %f, Y: %f\n", parallel_X_force[off_set],parallel_Y_force[off_set]);
-            printf("********************************************\n");
-            */
+        /* Update root world bodies  */
+        for(int j = 0; j < world->bodyCt; j++){
+                XF(world, j) = world_X_force[j];
+                YF(world, j) = world_Y_force[j];
+        }
     }
+    
+}
+
+
+/* Version 1.0 Broadcast*/
+/* Root node update other nodes*/
+static void
+update_world(   double * world_buf_X_1,double * world_buf_Y_1,
+                double * world_buf_X_2,double * world_buf_Y_2,
+                struct world *world,int rank)
+{
+    /* root store computed data into send buffer */
+    if(rank == 0){
+        for(int i =0;i<world->bodyCt;i++){
+            world_buf_X_1[i] = XV(world, i);
+            world_buf_Y_1[i] = YV(world, i);
+            world_buf_X_2[i] = XN(world, i);
+            world_buf_Y_2[i] = YN(world, i);
+        }
+    }   
+    
+    MPI_Bcast(world_buf_X_1,world->bodyCt,MPI_DOUBLE,0,MPI_COMM_WORLD);
+    MPI_Bcast(world_buf_Y_1,world->bodyCt,MPI_DOUBLE,0,MPI_COMM_WORLD);
+    MPI_Bcast(world_buf_X_2,world->bodyCt,MPI_DOUBLE,0,MPI_COMM_WORLD);
+    MPI_Bcast(world_buf_Y_2,world->bodyCt,MPI_DOUBLE,0,MPI_COMM_WORLD);
+
+    for(int i =0;i<world->bodyCt;i++){
+            XV(world, i) = world_buf_X_1[i];
+            YV(world, i) = world_buf_Y_1[i];
+            XN(world, i) = world_buf_X_2[i];
+            YN(world, i) = world_buf_Y_2[i];
+        }
     
 }
 
@@ -553,6 +585,10 @@ main(int argc, char **argv)
     double * world_X_force = malloc(world->bodyCt*(sizeof(double)));
     double * world_Y_force = malloc(world->bodyCt*(sizeof(double)));
 
+
+    double * world_buf_X_2 = malloc(world->bodyCt*(sizeof(double)));
+    double * world_buf_Y_2 = malloc(world->bodyCt*(sizeof(double)));
+
     double * parallel_X_force = NULL;
     double * parallel_Y_force = NULL;
 
@@ -576,7 +612,7 @@ main(int argc, char **argv)
     struct jobList * jobList = NULL;
     generate_job(world,&jobList,MPI_world,MPI_rank);
 
-    int count =1;
+    int count =steps;
     /* Main Loop */
     for (int step = 0; step < steps; step++) {
 
@@ -586,14 +622,25 @@ main(int argc, char **argv)
         /* Root gather force data from other node */
         /* Merege force on bodies from different world */
         merge_force(world_X_force,world_Y_force,parallel_X_force,parallel_Y_force,MPI_world,world,MPI_rank);
+        compute_velocities(world);
+
+        /* Broadcast new computed velocities to other node */
+        /*
+        MPI_Scatter(const void *sendbuf, int sendcount, MPI_Datatype sendtype,
+               void *recvbuf, int recvcount, MPI_Datatype recvtype, int root,
+               MPI_Comm comm)
         if(MPI_rank == 0 && count == 1){
-            for(int i =0 ; i < world->bodyCt;i++)printf("X: %f, Y: %f\n",world_X_force[i],world_Y_force[i]);
+            for(int i =0 ; i < world->bodyCt;i++)printf("X: %f, Y: %f\n",XV(world, i),YV(world, i));
             printf("********************************************\n");
             count = 0;
-        }
-        compute_velocities(world);
+        }*/
         compute_positions(world);
-
+        update_world(world_X_force,world_Y_force,world_buf_X_2,world_buf_Y_2,world,MPI_rank);
+        count--;
+        if(MPI_rank == 2 && count == 1){
+            for(int i =0 ; i < world->bodyCt;i++)printf("X: %f, Y: %f\n",XV(world, i),YV(world, i));
+            printf("********************************************\n");
+        }
         /* Flip old & new coordinates */
         world->old ^= 1;
 
