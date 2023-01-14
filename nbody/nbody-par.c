@@ -253,7 +253,6 @@ update_world(   double * world_buf_X_1,double * world_buf_Y_1,
             XN(world, i) = world_buf_X_2[i];
             YN(world, i) = world_buf_Y_2[i];
         }
-        asda
     
 }
 
