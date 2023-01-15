@@ -86,17 +86,6 @@ append_list(struct jobList ** jobList,int x1,int x2)
     return &(jobNode->next);
 }
 
-/* Visit linked list*/
-static void
-list_traversal(struct jobList ** head){
-    struct jobList * cursor = * head;
-    //printf("list:\n");
-    while(cursor  != NULL){
-        //printf("X1: %d, X2: %d\n",cursor->job->bodyPar[0],cursor->job->bodyPar[1]);
-        cursor  = cursor -> next;
-    }
-}
-
 /* Generate job for different node*/
 static int
 generate_job(struct world *world,struct jobList ** jobList, int MPI_world,int MPI_rank)
@@ -637,10 +626,7 @@ main(int argc, char **argv)
         compute_positions(world);
         update_world(world_X_force,world_Y_force,world_buf_X_2,world_buf_Y_2,world,MPI_rank);
         count--;
-        if(MPI_rank == 2 && count == 1){
-            for(int i =0 ; i < world->bodyCt;i++)printf("X: %f, Y: %f\n",XV(world, i),YV(world, i));
-            printf("********************************************\n");
-        }
+       
         /* Flip old & new coordinates */
         world->old ^= 1;
 
@@ -661,11 +647,12 @@ main(int argc, char **argv)
                 (start.tv_sec + (start.tv_usec / 1000000.0));
 
 
-    print(world);
-
-    fprintf(stderr, "\nCore: %d", MPI_rank);
-    fprintf(stderr, "\nN-body took: %.3f seconds\n", rtime);
-    fprintf(stderr, "Performance N-body: %.2f GFLOPS\n", nr_flops(world->bodyCt, steps) / 1e9 / rtime);
+    if(MPI_rank == 0){
+        print(world);
+        fprintf(stderr, "\nCore: %d", MPI_rank);
+        fprintf(stderr, "\nN-body took: %.3f seconds\n", rtime);
+        fprintf(stderr, "Performance N-body: %.2f GFLOPS\n", nr_flops(world->bodyCt, steps) / 1e9 / rtime);
+    }
 
     filemap_close(&image_map);
 

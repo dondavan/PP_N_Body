@@ -1,0 +1,9 @@
+--------------------------------------------------------------------------
+mpirun was unable to launch the specified application as it could not access
+or execute an executable:
+
+Executable: nbody/nbody-par
+Node: jiqiren
+
+while attempting to start process rank 0.
+--------------------------------------------------------------------------
