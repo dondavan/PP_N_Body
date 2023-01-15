@@ -418,7 +418,8 @@ main(int argc, char **argv)
         XV(world, b) = ((rand() % 20000) - 10000) / 2000.0;
         YV(world, b) = ((rand() % 20000) - 10000) / 2000.0;
     }
-
+    print(world);
+    printf("***************************\n");
     if (gettimeofday(&start, 0) != 0) {
         fprintf(stderr, "could not do timing\n");
         exit(1);

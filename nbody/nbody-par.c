@@ -570,6 +570,12 @@ main(int argc, char **argv)
         YV(world, b) = ((rand() % 20000) - 10000) / 2000.0;
     }
 
+    if(MPI_rank == 0){
+
+    print(world);
+    printf("***************************\n");
+    }
+
     /* Store body XY forces for parallel communication */
     double * world_X_force = malloc(world->bodyCt*(sizeof(double)));
     double * world_Y_force = malloc(world->bodyCt*(sizeof(double)));
