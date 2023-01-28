@@ -56,7 +56,12 @@ struct jobList
     struct jobList * next;
 };
 
-
+/* Linked member list */
+struct memberist
+{
+    int member;
+    struct memberList * next;
+};
 
 
 /*  Macros to hide memory layout
@@ -126,9 +131,50 @@ generate_job(struct world *world,struct jobList ** jobList, int MPI_world,int MP
             break;
         }
     }
-    
+
     return amount;
 }
+
+/* 
+* Every node send required body to root node
+* Body before start number are not needed, 
+* Return local start index
+*/
+static int
+send_start(struct world *world,struct jobList ** jobList, int MPI_world, int MPI_rank,int * node_index_start, int * node_count)
+{
+    
+    struct jobList * cursor1 = * jobList;
+    int * start = malloc(sizeof(int));
+    start[0] = cursor1->job->bodyPar[0];
+
+    int * new_world_bodyCt = malloc(sizeof(int));
+    * new_world_bodyCt = world->bodyCt - start[0];
+
+    int offset =  start[0];
+    // delete unneeded body in local node;
+
+    
+    //printf("Rank: %d    Before %f \n",MPI_rank,X(world, world->bodyCt-1));
+    world->bodyCt = world->bodyCt - start[0];
+
+    for (int b = 0; b < world->bodyCt; ++b) {
+        X(world, b) = X(world, b + offset);
+        Y(world, b) = Y(world, b + offset);
+        R(world, b) = R(world, b + offset);
+        M(world, b) = M(world, b + offset);
+        XV(world, b) = XV(world, b + offset);
+        YV(world, b) = YV(world, b + offset);
+    }
+    //printf("Rank: %d    After %f \n",MPI_rank,X(world, world->bodyCt-1));
+    
+    MPI_Gather(start,1,MPI_INT,node_index_start,1,MPI_INT,0,MPI_COMM_WORLD);
+    MPI_Gather(new_world_bodyCt,1,MPI_INT,node_count,1,MPI_INT,0,MPI_COMM_WORLD);
+    return start[0];
+
+}
+
+
 
 static void
 clear_forces(struct world *world)
@@ -174,33 +220,36 @@ compute_forces(struct world *world,struct jobList ** jobList)
         cursor  = cursor -> next;
     }
     
+    
 }
 
 
-/* Version 1.0 Gather*/
-/* Possible : sequential gather to hide latency*/
+/* Version 2.0 Gatherv*/
+/* Use gatherv to gather different size of buffer from node to reduce communication overhead*/
 static void
 merge_force(double * world_X_force,double * world_Y_force,
             double * parallel_X_force,double * parallel_Y_force,
-            int MPI_world,struct world *world,int rank)
+            int MPI_world,struct world *world,int rank,
+            int * node_count, int * node_displ,int * node_index_start)
 {
     
     for(int i =0;i<world->bodyCt;i++){
         world_X_force[i] = world->bodies[i].xf;
         world_Y_force[i] = world->bodies[i].yf;
     }
-    
-    MPI_Gather(world_X_force,world->bodyCt,MPI_DOUBLE,parallel_X_force,world->bodyCt,MPI_DOUBLE,0,MPI_COMM_WORLD);
-    MPI_Gather(world_Y_force,world->bodyCt,MPI_DOUBLE,parallel_Y_force,world->bodyCt,MPI_DOUBLE,0,MPI_COMM_WORLD);
 
-    int off_set = 0;
+    //MPI_Gatherv(&my_value, 1, MPI_INT, buffer, counts, displacements, MPI_INT, root_rank, MPI_COMM_WORLD);
+    MPI_Gatherv(world_X_force,world->bodyCt,MPI_DOUBLE,parallel_X_force,node_count,node_displ,MPI_DOUBLE,0,MPI_COMM_WORLD);
+    MPI_Gatherv(world_Y_force,world->bodyCt,MPI_DOUBLE,parallel_Y_force,node_count,node_displ,MPI_DOUBLE,0,MPI_COMM_WORLD);
+
+    int off_start;
     if(rank == 0){
         /* Merge force from different world to root world */
         for(int i = 1;i < MPI_world;i++){
-            off_set = i * world->bodyCt;
-            for(int j = 0; j < world->bodyCt; j++){
-                world_X_force[j] +=  parallel_X_force[j + off_set];
-                world_Y_force[j] +=  parallel_Y_force[j + off_set];
+            off_start = node_index_start[i];
+            for(int j = 0; j < node_count[i]; j++){
+                world_X_force[j + off_start] +=  parallel_X_force[node_displ[i]];
+                world_Y_force[j + off_start] +=  parallel_Y_force[node_displ[i]];
             }
         }
         /* Update root world bodies  */
@@ -218,8 +267,9 @@ merge_force(double * world_X_force,double * world_Y_force,
 static void
 update_world(   double * world_buf_X_1,double * world_buf_Y_1,
                 double * world_buf_X_2,double * world_buf_Y_2,
-                struct world *world,int rank)
+                struct world *world,int rank, int universe_bodyCt, int local_start)
 {
+    
     /* root store computed data into send buffer */
     if(rank == 0){
         for(int i =0;i<world->bodyCt;i++){
@@ -230,16 +280,16 @@ update_world(   double * world_buf_X_1,double * world_buf_Y_1,
         }
     }   
     
-    MPI_Bcast(world_buf_X_1,world->bodyCt,MPI_DOUBLE,0,MPI_COMM_WORLD);
-    MPI_Bcast(world_buf_Y_1,world->bodyCt,MPI_DOUBLE,0,MPI_COMM_WORLD);
-    MPI_Bcast(world_buf_X_2,world->bodyCt,MPI_DOUBLE,0,MPI_COMM_WORLD);
-    MPI_Bcast(world_buf_Y_2,world->bodyCt,MPI_DOUBLE,0,MPI_COMM_WORLD);
+    MPI_Bcast(world_buf_X_1,universe_bodyCt,MPI_DOUBLE,0,MPI_COMM_WORLD);
+    MPI_Bcast(world_buf_Y_1,universe_bodyCt,MPI_DOUBLE,0,MPI_COMM_WORLD);
+    MPI_Bcast(world_buf_X_2,universe_bodyCt,MPI_DOUBLE,0,MPI_COMM_WORLD);
+    MPI_Bcast(world_buf_Y_2,universe_bodyCt,MPI_DOUBLE,0,MPI_COMM_WORLD);
 
     for(int i =0;i<world->bodyCt;i++){
-        XV(world, i) = world_buf_X_1[i];
-        YV(world, i) = world_buf_Y_1[i];
-        XN(world, i) = world_buf_X_2[i];
-        YN(world, i) = world_buf_Y_2[i];
+        XV(world, i) = world_buf_X_1[i+local_start];
+        YV(world, i) = world_buf_Y_1[i+local_start];
+        XN(world, i) = world_buf_X_2[i+local_start];
+        YN(world, i) = world_buf_Y_2[i+local_start];
     }
     
 }
@@ -582,17 +632,42 @@ main(int argc, char **argv)
     double * parallel_X_force = NULL;
     double * parallel_Y_force = NULL;
 
+    /* Root node stores every node's body start index */
+    int * node_index_start = NULL;
+    /* Array for root ndoe to store each node's displament and count for gatherv*/
+    int * node_displ = NULL;
+    int * node_count = NULL;
+    
+    /* Stores total body count */
+    int universe_bodyCt = world->bodyCt;
     if(MPI_rank == 0){
         parallel_X_force = malloc((MPI_world * world->bodyCt) * (sizeof(double)));
         parallel_Y_force = malloc((MPI_world * world->bodyCt) * (sizeof(double)));
-        if (parallel_X_force == NULL || parallel_Y_force == NULL) {
+        node_index_start = malloc((MPI_world) * (sizeof(int)));
+        node_displ = malloc((MPI_world) * (sizeof(int)));
+        node_count = malloc((MPI_world) * (sizeof(int)));
+
+        if (parallel_X_force == NULL || parallel_Y_force == NULL || node_index_start == NULL || node_displ == NULL || node_count == NULL) {
         fprintf(stderr, "Cannot calloc(parallel foreces)\n");
         exit(1);
         }
     }
 
     struct jobList * jobList = NULL;
+
     generate_job(world,&jobList,MPI_world,MPI_rank);
+    int local_start = send_start(world,&jobList,MPI_world,MPI_rank,node_index_start,node_count);
+
+    if(MPI_rank == 0){
+        int offset = 0;
+        for(int i = 0;i< MPI_world ; i++){
+            node_displ[i] = offset;
+            offset += node_count[i];
+            printf("Count %d \n",node_displ[i]);
+        }
+    }
+
+
 
     MPI_Barrier(MPI_COMM_WORLD);
 
@@ -610,13 +685,13 @@ main(int argc, char **argv)
         compute_forces(world,&jobList);
         /* Root gather force data from other node */
         /* Merege force on bodies from different world */
-        merge_force(world_buf_X_1,world_buf_Y_1,parallel_X_force,parallel_Y_force,MPI_world,world,MPI_rank);
+        merge_force(world_buf_X_1,world_buf_Y_1,parallel_X_force,parallel_Y_force,MPI_world,world,MPI_rank,node_count,node_displ,node_index_start);
 
         compute_velocities(world);
 
 
         compute_positions(world);
-        update_world(world_buf_X_1,world_buf_Y_1,world_buf_X_2,world_buf_Y_2,world,MPI_rank);
+        update_world(world_buf_X_1,world_buf_Y_1,world_buf_X_2,world_buf_Y_2,world,MPI_rank,universe_bodyCt,local_start);
 
 
         count--;

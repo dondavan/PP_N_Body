@@ -32,6 +32,7 @@ work = 	compute_forces(world);
 1. Worker compute local force. Local astro bodies accumlates one force
 
 
+prun -v -16 -np 8 -sge-script /cm/shared/package/reserve.slurm/etc/prun-openmpi nbody/nbody-par 10000 0 nbody.ppm 100
 
 ## Communicate overhead
 
